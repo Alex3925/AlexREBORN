@@ -1,7 +1,16 @@
-// Sorry for pterodactyl 🥲 
+import { format, UNIRedux } from "cassidy-styler";
+import fs from "fs";
 
-import { format, UNIRedux } from "cassidy-styler"
-import fs from "fs"
+type UserRole = 0 | 1 | 2 | 3;
+
+function getUserRole(uid: string, config: any): UserRole {
+  uid = String(uid);
+  const safeConfig = config || { admins: [], moderators: [], developers: [] };
+  if (Array.isArray(safeConfig.developers) && safeConfig.developers.includes(uid)) return 3;
+  if (Array.isArray(safeConfig.moderators) && safeConfig.moderators.includes(uid)) return 2;
+  if (Array.isArray(safeConfig.admins) && safeConfig.admins.includes(uid)) return 1;
+  return 0;
+}
 
 module.exports = {
   name: "suggest",
@@ -12,8 +21,8 @@ module.exports = {
     role: 0,
   },
 
-  async run({ api, event, args, db }) {
-    const { threadID, senderID, messageID } = event
+  async run({ api, event, args, db }: { api: any; event: any; args: string[]; db: any }) {
+    const { threadID, senderID, messageID } = event;
 
     if (!db) {
       const msg = format({
@@ -22,52 +31,51 @@ module.exports = {
         titleFont: "double_struck",
         contentFont: "fancy_italic",
         content: `❌ Database not available. Please ensure MongoDB is connected.\n> Thanks for using Cid Kagenou bot`,
-      })
-      return api.sendMessage(msg, threadID, messageID)
+      });
+      return api.sendMessage(msg, threadID, messageID);
     }
 
-    const collection = db.db("suggestions")
-    let config
+    const collection = db.db("suggestions");
+    let config: any;
 
     try {
-      config = JSON.parse(fs.readFileSync("config.json", "utf8"))
-      config.admins = Array.isArray(config.admins) ? [...config.admins] : []
-      config.moderators = Array.isArray(config.moderators) ? [...config.moderators] : []
-      config.developers = Array.isArray(config.developers) ? [...config.developers] : []
+      config = JSON.parse(fs.readFileSync("config.json", "utf8"));
+      config.admins = Array.isArray(config.admins) ? [...config.admins] : [];
+      config.moderators = Array.isArray(config.moderators) ? [...config.moderators] : [];
+      config.developers = Array.isArray(config.developers) ? [...config.developers] : [];
     } catch (error) {
-      console.error("Error loading config.json:", error)
-      config = { admins: [], moderators: [], developers: [], Prefix: ["#"] }
+      console.error("Error loading config.json:", error);
+      config = { admins: [], moderators: [], developers: [], Prefix: ["#"] };
     }
 
     if (args.length === 0) {
-      const prefix = config.Prefix?.[0] || "#"
+      const prefix = config.Prefix?.[0] || "#";
       const msg = format({
         title: "💡 Suggestion System",
         titlePattern: `${UNIRedux.arrow} {word}`,
         titleFont: "double_struck",
         contentFont: "fancy_italic",
         content: `ℹ️ Usage: ${prefix}suggest <suggestion> | ${prefix}suggest list | ${prefix}suggest accept <number> | ${prefix}suggest remove\n> Suggest anything to improve the bot!\n> Thanks for using Cid Kagenou bot`,
-      })
-      return api.sendMessage(msg, threadID, messageID)
+      });
+      return api.sendMessage(msg, threadID, messageID);
     }
 
-    const command = args[0].toLowerCase()
-    const userRole = getUserRole(senderID, config)
-    console.log(`Debug - SenderID: ${senderID}, Role: ${userRole}, Config:`, config)
+    const command = args[0].toLowerCase();
+    const userRole = getUserRole(senderID, config);
 
-    if (command === "list" && userRole < 1) {
-      const msg = format({
-        title: "💡 Suggestion System",
-        titlePattern: `${UNIRedux.arrow} {word}`,
-        titleFont: "double_struck",
-        contentFont: "fancy_italic",
-        content: `❌ Only admins, moderators, and developers can view the suggestion list.\n> Thanks for using Cid Kagenou bot`,
-      })
-      return api.sendMessage(msg, threadID, messageID)
-    }
+    if (command === "list") {
+      if (userRole < 1) {
+        const msg = format({
+          title: "💡 Suggestion System",
+          titlePattern: `${UNIRedux.arrow} {word}`,
+          titleFont: "double_struck",
+          contentFont: "fancy_italic",
+          content: `❌ Only admins, moderators, and developers can view the suggestion list.\n> Thanks for using Cid Kagenou bot`,
+        });
+        return api.sendMessage(msg, threadID, messageID);
+      }
 
-    if (command === "list" && userRole >= 1) {
-      const suggestions = await collection.find({}).toArray()
+      const suggestions = await collection.find({}).toArray();
       if (!suggestions || suggestions.length === 0) {
         const msg = format({
           title: "💡 Suggestion System",
@@ -75,13 +83,16 @@ module.exports = {
           titleFont: "double_struck",
           contentFont: "fancy_italic",
           content: `ℹ️ No suggestions found.\n> Encourage users to suggest ideas!\n> Thanks for using Cid Kagenou bot`,
-        })
-        return api.sendMessage(msg, threadID, messageID)
+        });
+        return api.sendMessage(msg, threadID, messageID);
       }
 
-      const list = suggestions.map((s, index) =>
-        `${index + 1}. ${s.name} - [${s.uid}]\n— suggested —\n${s.suggestion}`
-      ).join("\n\n")
+      const list = suggestions
+        .map(
+          (s: any, index: number) =>
+            `${index + 1}. ${s.name} - [${s.uid}]\n— suggested —\n${s.suggestion}`
+        )
+        .join("\n\n");
 
       const msg = format({
         title: "💡 Suggestion List",
@@ -89,12 +100,12 @@ module.exports = {
         titleFont: "double_struck",
         contentFont: "fancy_italic",
         content: `📋 Suggestion List:\n${list}\n> Total: ${suggestions.length}\n> Thanks for using Cid Kagenou bot`,
-      })
-      return api.sendMessage(msg, threadID, messageID)
+      });
+      return api.sendMessage(msg, threadID, messageID);
     }
 
     if (command === "accept" && userRole >= 1) {
-      const number = parseInt(args[1])
+      const number = parseInt(args[1]);
       if (isNaN(number) || number < 1) {
         const msg = format({
           title: "💡 Suggestion System",
@@ -102,11 +113,11 @@ module.exports = {
           titleFont: "double_struck",
           contentFont: "fancy_italic",
           content: `❌ Please provide a valid suggestion number (e.g., ${config.Prefix?.[0] || "#"}suggest accept 1).\n> Thanks for using Cid Kagenou bot`,
-        })
-        return api.sendMessage(msg, threadID, messageID)
+        });
+        return api.sendMessage(msg, threadID, messageID);
       }
 
-      const suggestions = await collection.find({}).toArray()
+      const suggestions = await collection.find({}).toArray();
       if (number > suggestions.length) {
         const msg = format({
           title: "💡 Suggestion System",
@@ -114,14 +125,17 @@ module.exports = {
           titleFont: "double_struck",
           contentFont: "fancy_italic",
           content: `❌ Suggestion #${number} does not exist.\n> Check the list with ${config.Prefix?.[0] || "#"}suggest list.\n> Thanks for using Cid Kagenou bot`,
-        })
-        return api.sendMessage(msg, threadID, messageID)
+        });
+        return api.sendMessage(msg, threadID, messageID);
       }
 
-      const suggestion = suggestions[number - 1]
-      await collection.updateOne({ _id: suggestion._id }, { $set: { accepted: true, acceptedBy: senderID, acceptedAt: new Date() } })
-      
-      const threads = await db.db("threads").find({}).toArray()
+      const suggestion = suggestions[number - 1];
+      await collection.updateOne(
+        { _id: suggestion._id },
+        { $set: { accepted: true, acceptedBy: senderID, acceptedAt: new Date() } }
+      );
+
+      const threads = await db.db("threads").find({}).toArray();
 
       for (const thread of threads) {
         api.sendMessage(
@@ -133,7 +147,7 @@ module.exports = {
             content: `📢 Suggestion from ${suggestion.name} [${suggestion.uid}] has been accepted by an admin!\n— Suggestion: ${suggestion.suggestion}\n> Thanks for using Cid Kagenou bot`,
           }),
           thread.threadID
-        )
+        );
       }
 
       const msg = format({
@@ -142,13 +156,13 @@ module.exports = {
         titleFont: "double_struck",
         contentFont: "fancy_italic",
         content: `✅ Suggestion #${number} accepted and notified all threads.\n> Thanks for using Cid Kagenou bot`,
-      })
+      });
 
-      return api.sendMessage(msg, threadID, messageID)
+      return api.sendMessage(msg, threadID, messageID);
     }
 
     if (command === "remove") {
-      const userSuggestions = await collection.find({ uid: senderID }).toArray()
+      const userSuggestions = await collection.find({ uid: senderID }).toArray();
 
       if (!userSuggestions || userSuggestions.length === 0) {
         const msg = format({
@@ -157,135 +171,78 @@ module.exports = {
           titleFont: "double_struck",
           contentFont: "fancy_italic",
           content: `❌ You didn't submit any suggestions, please use suggest <suggestion> to submit.\n> Thanks for using Cid Kagenou bot`,
-        })
-        
-        return api.sendMessage(msg, threadID, messageID)
+        });
+
+        return api.sendMessage(msg, threadID, messageID);
       }
 
       if (userSuggestions.length > 1) {
-        await collection.deleteMany({ uid: senderID })
-      
+        await collection.deleteMany({ uid: senderID });
       } else {
+        await collection.deleteOne({ _id: userSuggestions[0]._id });
+      }
 
-this.api.deleteOne({ _id:userSuggestions[0]._id})
+      const msg = format({
+        title: "💡 Suggestion System",
+        titlePattern: `${UNIRedux.arrow} {word}`,
+        titleFont: "double_struck",
+        contentFont: "fancy_italic",
+        content: `✅ Your suggestion(s) have been removed.\n> Thank you for using Cid Kagenou bot`,
+      });
 
-}
+      return api.sendMessage(msg, threadID, messageID);
+    }
 
-const msg=format({
+    // Default: submitting a suggestion
+    if (!["list", "accept", "remove"].includes(command)) {
+      const suggestion = args.join(" ").trim();
 
-title:"💡SuggestionSystem",
+      if (!suggestion) {
+        const msg = format({
+          title: "💡 Suggestion System",
+          titlePattern: `${UNIRedux.arrow} {word}`,
+          titleFont: "double_struck",
+          contentFont: "fancy_italic",
+          content: `❌ Please provide a suggestion (e.g., ${config.Prefix?.[0] || "#"}suggest create more commands).\n> Thank you for using Cid Kagenou bot`,
+        });
 
-titlePattern:`${UNIRedux.arrow}{word}`,
+        return api.sendMessage(msg, threadID, messageID);
+      }
 
-titleFont:"double_struck",
+      const userSuggestions = await collection.find({ uid: senderID }).toArray();
 
-contentFont:"fancy_italic",
+      if (userSuggestions.length > 0) {
+        const msg = format({
+          title: "💡 Suggestion System",
+          titlePattern: `${UNIRedux.arrow} {word}`,
+          titleFont: "double_struck",
+          contentFont: "fancy_italic",
+          content: `❌ You can only submit one suggestion. Use ${config.Prefix?.[0] || "#"}suggest remove to delete your current suggestion.\n> Thank you for using Cid Kagenou bot`,
+        });
 
-content:`✅Your suggestion(s)have been removed.\n>Thank you for using Cid Kagenoubot`,
+        return api.sendMessage(msg, threadID, messageID);
+      }
 
-})
+      const userInfo = await api.getUserInfo(senderID);
+      const name = userInfo[senderID]?.name || `User ${senderID}`;
 
-returnapi.sendMessage(msg,threadID,messageID)
+      await collection.insertOne({
+        uid: senderID,
+        name,
+        suggestion,
+        createdAt: new Date(),
+        accepted: false,
+      });
 
-}
+      const msg = format({
+        title: "💡 Suggestion System",
+        titlePattern: `${UNIRedux.arrow} {word}`,
+        titleFont: "double_struck",
+        contentFont: "fancy_italic",
+        content: `✅ Your suggestion "${suggestion}" has been sent to developers for review. Please wait for acceptance.\n> Thank you for using Cid Kagenou bot`,
+      });
 
-if(!command.match(/list|accept|remove/)){
-
-const suggestion=args.join(" ").trim()
-
-if(!suggestion){
-
-const msg=format({
-
-title:"💡SuggestionSystem",
-
-titlePattern:`${UNIRedux.arrow}{word}`,
-
-titleFont:"double_struck",
-
-contentFont:"fancy_italic",
-
-content:`❌Pleaseprovide a suggestion (e.g.,${config.Prefix?.[0]||"#"}suggest create more commands).\n>Thank youfor usingCidKagenoubot`,
-
-})
-
-returnapi.sendMessage(msg,threadID,messageID)
-
-}
-
-const userSuggestions=awaitcollection.find({uid:senderID}).toArray()
-
-if(userSuggestions.length >0){
-
-const msg=format({
-
-title:"💡SuggestionSystem",
-
-titlePattern:`${UNIRedux.arrow}{word}`,
-
-titleFont:"double_struck",
-
-contentFont:"fancy_italic",
-
-content:`❌Youcanonlysubmitonesuggestion.Use${config.Prefix?.[0]||"#"}suggestremove todelete your current suggestion.\n>ThankyouforusingCidKagenoubot`,
-
-})
-
-returnapi.sendMessage(msg,threadID,messageID)
-
-}
-
-const userInfo=awaitapi.getUserInfo(senderID)
-
-const name=userInfo[senderID].name||`User ${senderID}`
-
-awaitcollection.insertOne({
-
-uid:senderID,
-
-name,
-
-suggestion,
-
-createdAt:new Date(),
-
-accepted:false,
-
-})
-
-const msg=format({
-
-title:"💡SuggestionSystem",
-
-titlePattern:`${UNIRedux.arrow}{word}`,
-
-titleFont:"double_struck",
-
-contentFont:"fancy_italic",
-
-content:`✅Your suggestion "${suggestion}"hasbeensent todevelopersfor review. Pleasewait for acceptance.\n > Thankforusing CidKagenoubot`,
-
-})
-
-returnapi.sendMessage(msg,threadID,messageId)
-
-}
-
-}
-}
-
-function getUserRole(uid:string , config:any):number {
-
-uid=String(uid)
-
-const safeConfig=config||{admins : [], moderators :[], developers :[]}
-
-if(Array.isArray(safeConfig.developers)? safeConfig.developers.includes(uid):false)return3
-
-if(Array.isArray(safeConfig.moderators)? safeConfig.moderators.includes(uid):false)return2
-
-if(Array.isArray(safeConfig.admins)? safeConfig.admins.includes(uid):false)return1
-
-return0
-
-}
+      return api.sendMessage(msg, threadID, messageID);
+    }
+  },
+};
