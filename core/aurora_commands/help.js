@@ -46,7 +46,7 @@ module.exports = {
 
       titleFont: "double_struck",
 
-      content: content + "Aurora System Developed by Aljur pogoy",
+      content: content + "Aurora System Developed by Alex",
 
       contentFont: "bold",
 
