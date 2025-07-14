@@ -7,10 +7,11 @@ require("./core/global");
 const { MongoClient } = require("mongodb");
 const fs = require("fs-extra");
 const path = require("path");
-const login = require("fbvibex");
+// Changed from fbvibex to ws3-fca (Fixed By Alex) 
+const login = require("ws3-fca");
 const apiHandler = require("./utils/apiHandler");
 const { handleAuroraCommand, loadAuroraCommands } = require("./core/aurora"); 
-loadAuroraCommands
+loadAuroraCommands();
 const commands = new Map();
 const nonPrefixCommands = new Map();
 const eventCommands = [];
@@ -70,7 +71,6 @@ async function handleReply(api, event) {
     api.sendMessage(`An error occurred while processing your reply: ${err.message}`, event.threadID, event.messageID);
   }
 }
-
 
 const loadCommands = () => {
   const retroGradient = require("gradient-string").retro;
@@ -375,7 +375,7 @@ const startListeningForMessages = (api) => {
         }
       }
     }
-   if (event.type === "message_reaction") {
+    if (event.type === "message_reaction") {
       await handleReaction(api, event);
     }
     if (event.type === "message" && event.body && event.body.startsWith(config.Prefix[0])) {
