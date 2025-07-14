@@ -1,0 +1,10 @@
+{
+  "admins": [],
+  "moderators": [],
+  "developers": [],
+  "Prefix": [
+    "/"
+  ],
+  "botName": "KagenouBotV4",
+  "mongoUri": ""
+}
