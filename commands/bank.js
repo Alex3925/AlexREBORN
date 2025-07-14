@@ -2,7 +2,7 @@ const fs = require("fs-extra");
 const path = require("path");
 module.exports = {
   name: "bank",
-  author: "Aljur Pogoy",
+  author: "Aljur Pogoy", //fixed by Alex
   description: "Manage your bank account!",
   Usage: "/bank <action> [amount/name]",
   version: "3.0.0",
@@ -28,7 +28,7 @@ module.exports = {
         menuMessage += "📝 『 𝗥𝗘𝗚𝗜𝗦𝗧𝗘𝗥 』 - /bank register <name>\n";
         menuMessage += "💸 『 𝗪𝗜𝗧𝗛𝗗𝗥𝗔𝗪 』 - /bank withdraw <amount>\n";
         menuMessage += "💰 『 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 』 - /bank deposit <amount>\n";
-        menuMessage += "🏦 『 �_L𝗢𝗔𝗡 』 - /bank loan <amount>\n";
+        menuMessage += "🏦 『 𝗟𝗢𝗔𝗡 』 - /bank loan <amount>\n";
         menuMessage += "📜 『 𝗥𝗘𝗣𝗔𝗬 』 - /bank repay\n\n";
         menuMessage += "> 𝗠𝗮𝗻𝗮𝗴𝗲 𝘆𝗼𝘂𝗿 𝗰𝗼𝗶𝗻𝘀 𝘄𝗶𝘁𝗵 𝗲𝗮𝘀𝗲!";
         return api.sendMessage(menuMessage, threadID, messageID);
@@ -104,4 +104,55 @@ module.exports = {
         if (user.loan) {
           const totalRepay = user.loan.amount + user.loan.interest;
           return api.sendMessage(
-            `🏦 『 𝗟𝗢𝗔𝗡 』 🏦\n\n❌ You already have an outstanding loan!\nLoan Amount: ${user.loan.amount} coins\nInterest: ${user.loan.interest} coins\nTotal to Repay: ${totalRepay} coins\n\nPlease
+            `🏦 『 𝗟𝗢𝗔𝗡 』 🏦\n\n❌ You already have an outstanding loan!\nLoan Amount: ${user.loan.amount} coins\nInterest: ${user.loan.interest} coins\nTotal to Repay: ${totalRepay} coins\n\nPlease repay your current loan before taking another one.`,
+            threadID,
+            messageID
+          );
+        }
+        if (amount > maxLoan) {
+          return api.sendMessage(
+            `🏦 『 𝗟𝗢𝗔𝗡 』 🏦\n\n❌ Maximum loan amount is ${maxLoan} coins.`,
+            threadID,
+            messageID
+          );
+        }
+        const interest = Math.floor(amount * interestRate);
+        user.loan = { amount, interest };
+        user.bank += amount;
+        usersData.set(senderID, user);
+        let loanMessage = "🏦 『 𝗟𝗢𝗔𝗡 』 🏦\n\n";
+        loanMessage += `✅ Loan approved for ${amount} coins!\n`;
+        loanMessage += `💸 Interest: ${interest} coins\n`;
+        loanMessage += `🏦 Bank Balance: ${user.bank} coins\n`;
+        loanMessage += `📜 Remember to repay your loan with /bank repay`;
+        return api.sendMessage(loanMessage, threadID, messageID);
+      }
+      if (action === "repay") {
+        if (!user.loan) {
+          return api.sendMessage(
+            "📜 『 𝗥𝗘𝗣𝗔𝗬 』 📜\n\n❌ You have no outstanding loan.",
+            threadID,
+            messageID
+          );
+        }
+        const totalRepay = user.loan.amount + user.loan.interest;
+        if (user.bank < totalRepay) {
+          return api.sendMessage(
+            `📜 『 𝗥𝗘𝗣𝗔𝗬 』 📜\n\n❌ Insufficient bank funds to repay your loan!\nRequired: ${totalRepay} coins\nBank Balance: ${user.bank} coins`,
+            threadID,
+            messageID
+          );
+        }
+        user.bank -= totalRepay;
+        user.loan = null;
+        usersData.set(senderID, user);
+        let repayMessage = "📜 『 𝗥𝗘𝗣𝗔𝗬 』 📜\n\n";
+        repayMessage += `✅ Loan repaid successfully!\n`;
+        repayMessage += `🏦 Bank Balance: ${user.bank} coins`;
+        return api.sendMessage(repayMessage, threadID, messageID);
+      }
+    } catch (err) {
+      return api.sendMessage("❌ An error occurred in the bank command.", threadID, messageID);
+    }
+  }
+};
